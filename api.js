@@ -1,56 +1,95 @@
-//requires
+
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 
 
-//IMPORTS
-const mysql_config=require('./imp/mysql_config');
-const functions = require ('./imp/functions');
+const mysql_config = require('./imp/mysql_config');
+const functions = require('./imp/functions');
 
-//variaveis para disponibilidade e para versionamento
+
 const API_AVAILABILITY = true;
 const API_VERSION = '1.0.0';
 
-//iniciar o servidor
+
 const app = express();
-app.listen(3000,()=>{
+app.listen(3000, () => {
     console.log("API está executando")
 })
 
-//verificar a disponibilidade da API
-app.use((req,res,next)=>{
-    if(API_AVAILABILITY){
+
+app.use((req, res, next) => {
+    if (API_AVAILABILITY) {
         next()
-    }else{
-        res.json(functions.response('atenção','API está em manutenção. Sorry!',0,null))
+    } else {
+        res.json(functions.response('atenção', 'API está em manutenção. Sorry!', 0, null))
     }
 })
 
-//conexão com mysql
+
 const connection = mysql.createConnection(mysql_config)
 
-//cors
+
 app.use(cors())
 
-//rotas
-//rota inicial (entrada)
-app.get('/',(req,res)=>{
-    res.json(functions.response ('atenção','API está em manutenção. Sorry!',0,null))
+
+
+app.get('/', (req, res) => {
+    res.json(functions.response('atenção', 'API está em manutenção. Sorry!', 0, null))
 })
-//endpoint
-//rota para a consulta completa
-app.get('./tasks',(req,res)=>{
-    connection.query('SELECT * FROM tasks',(err,rows)=>{
-        if(err){
-            res.json(functions.response('sucesso','sucesso na consulta',rows.length,rows))
-        }else{
+
+
+
+app.get('./tasks', (req, res) => {
+    connection.query('SELECT * FROM tasks', (err, rows) => {
+        if (err) {
+            res.json(functions.response('sucesso', 'sucesso na consulta', rows.length, rows))
+        } else {
             res.json(functions.response(''))
         }
     })
 })
 
-//tratar o erro da rota
-app.use((req,res)=>{
-    res.use(functions.response('atenção','não encontrado',0,null))
+
+
+//rota para fazer uma consulta de task por id 
+
+app.get('./tasks/id', (req, res) => {
+    const id = req.params.id;
+    connection.query('SELECT * FROM tasks WHERE id = ?',[id], (err, rows) => {
+        if (err) {
+            if (rows.length > 0) {
+                res.json(functions.response('Sucesso!', 'sucesso na pesquisa!', rows.length, rows))
+            } else {
+                res.json(functions.response('Atenção!', 'Não foi encontrada a task selecionada!', 0, null))
+            }
+
+        } else {
+            res.json(functions.response('erro',err))
+        }
+    })
+})
+
+//rota para atualizar o status da taxa pelo id selecionado
+app.put ('./tasks/id/:status',(req,res)=>{
+    const id = req.params.id;
+    const status = req.params.status;
+    connection.query('UPDATE tasks SET status =? WHERE id = ?',[status,id],(err, rows) =>{
+        if(!err){
+            if(rows.affectedRows>0){
+                res.json(functions.response('Sucesso!', 'sucesso na alteração do status!', rows.affectedRows,null))
+            }else{
+                res.json(functions.response('Alerta vermelho!', 'Tasks não encontradas!',  0, null))
+            }
+        }else{
+            res.json(functions.response('Erro!',err.message,0,null))
+        }
+    })
+})
+
+
+
+
+app.use((req, res) => {
+    res.use(functions.response('atenção', 'não encontrado', 0, null))
 })
